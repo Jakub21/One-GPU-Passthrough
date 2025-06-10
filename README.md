@@ -267,13 +267,22 @@ By following these steps, you'll have your virtual machine set up and ready for 
 ![Screenshot from 2024-09-07 13-31-49](https://github.com/user-attachments/assets/3107a02a-c9c8-472f-abcb-26596c231bd8)
 
 15. **Set VNC (optional)**
-    - Go to **Display Spice**.
-    - Change Type to **VNC server**.
-    - Change Address to **All interfaces**
 
-    ![Screenshot from 2024-09-07 13-38-43](https://github.com/user-attachments/assets/24d333cf-5e6a-4eae-a72e-d90476301d91)
+    - Old procedure no longer works - a config without Spice cannot be applied
+      > Error changing VM configuration: unsupported configuration: chardev 'spicevmc' not supported without spice graphics
+      > Refer to https://bbs.archlinux.org/viewtopic.php?id=277087 for details
+      - Old procedure
+        - Go to **Display Spice**.
+        - Change Type to **VNC server**.
+        - Change Address to **All interfaces**
 
-16. **Setting Up libvirt hooks**
+        ![Screenshot from 2024-09-07 13-38-43](https://github.com/user-attachments/assets/24d333cf-5e6a-4eae-a72e-d90476301d91)
+
+      - Fixed procedure
+        - Create a new graphics device and use the config from above
+        - Change Spice display listen type to None
+
+17. **Setting Up libvirt hooks**
     - Create /etc/libvirt/hooks
       ```bash
       sudo mkdir -p /etc/libvirt/hooks
@@ -328,14 +337,14 @@ By following these steps, you'll have your virtual machine set up and ready for 
       echo efi-framebuffer.0 > /sys/bus/platform/drivers/efi-framebuffer/unbind
 
       # Avoid a Race condition by waiting 2 seconds. This can be calibrated to be shorter or longer if required for your system
-      sleep 2
+      sleep 3
 
       # Unbind the GPU from display driver
       virsh nodedev-detach pci_0000_01_00_0
       virsh nodedev-detach pci_0000_01_00_1
 
       # Load VFIO Kernel Module
-      modprobe vfio-pci
+      modprobe vfio-pci  # TODO: modprobe does not exist on my system https://stackoverflow.com/q/34800731
       ```
 
       - **Save and make it Executable**:
@@ -370,7 +379,7 @@ By following these steps, you'll have your virtual machine set up and ready for 
 
       sleep 2
 
-      # Reload modules
+      # Reload modules  # TODO: modprobe does not exist on my system
       modprobe -r vfio-pci
       modprobe nvidia
       modprobe nvidia_modeset
@@ -382,7 +391,9 @@ By following these steps, you'll have your virtual machine set up and ready for 
       # Some machines might have more than 1 virtual console. Add a line for each corresponding VTConsole
       #echo 1 > /sys/class/vtconsole/vtcon1/bind
 
-      nvidia-xconfig --query-gpu-info > /dev/null 2>&1
+      # commenting out
+      # because nvidia-xconfig does not exist on my Debian 13 + KDE + Wayland
+      # nvidia-xconfig --query-gpu-info > /dev/null 2>&1
       echo "efi-framebuffer.0" > /sys/bus/platform/drivers/efi-framebuffer/bind
 
       # Restart Display Manager
@@ -395,7 +406,7 @@ By following these steps, you'll have your virtual machine set up and ready for 
       ```
 
 
-17. **Customize the files**
+18. **Customize the files**
 - Change the marked numbers with yours
 ![Screenshot from 2024-09-07 14-25-11](https://github.com/user-attachments/assets/fec73398-66f0-4bdf-b426-07d69b311375)
 
