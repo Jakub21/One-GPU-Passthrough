@@ -250,6 +250,7 @@ By following these steps, you'll have your virtual machine set up and ready for 
     - Shut Down the System.
 
     - Remove the Drivers we added above
+      - Maybe due to a mistake but a second Disk also appeared with the same size as the CD. Not removing it causes an error later on.
 
       ![Screenshot from 2024-09-10 10-43-34](https://github.com/user-attachments/assets/b91f43dd-b4c3-4cd5-8ccc-ad88bc353f71)
 
