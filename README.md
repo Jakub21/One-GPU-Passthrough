@@ -7,9 +7,10 @@ My setup:
 - GPU: NVidia GTX1060 6gb (MSI)
 - MB: MSI Z270 M3
   - Dual monitor option enabled, second monitor connected to the MB
-- OS: Debian 13 rc1 + KDE Plasma + Wayland
+- Host OS: Debian 13 rc1 + KDE Plasma + Wayland
   - Open source GPU driver `nouveau`
   - All packages up to date as of June 2025
+- Guest OS: Windows 10
 
 -----------------
 
@@ -299,7 +300,14 @@ By following these steps, you'll have your virtual machine set up and ready for 
         - Instead of editing **Display Spice**, create a new graphics device and configure it to be the same as above
         - Change **Display Spice** listen type to **None**
 
-17. **Setting Up libvirt hooks**
+16. **Verify VNC**
+
+    Before proceeding it is good to check if the VNC works.
+
+    - Disable auto port
+    - Download a viewer on another machine in the local network
+
+18. **Setting Up libvirt hooks**
 
        
     - Verify that modprobe is available.
@@ -444,7 +452,7 @@ By following these steps, you'll have your virtual machine set up and ready for 
       ```
 
 
-18. **Customize the files**
+19. **Customize the files**
 - Change the marked numbers with yours
 ![Screenshot from 2024-09-07 14-25-11](https://github.com/user-attachments/assets/fec73398-66f0-4bdf-b426-07d69b311375)
 
@@ -464,7 +472,9 @@ By following these steps, you'll have your virtual machine set up and ready for 
   
   To determine which modules must be replaced, use `lsmod` and grep the output. Open source NVidia driver will not be found if searching for `nvidia` because it is called `nouveau`. My Intel HD Graphics driver is called `i915`.
 
-  Which modules must be stopped when using `nouveau` is yet to be determined as of now. First attempt will only involve the `nouveau` module itself.
+  Which modules must be stopped when using `nouveau` is yet to be determined as of now.
+  1. First attempt will only involve the `nouveau` module itself.
+    - Fail. Another monitor (connected to MB) also went black. Windows did not take over the GPU.
 
 18. **Add the Hardware to the VM**
 - Click on Add Hardware and select **PCI Host Device**.
