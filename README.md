@@ -603,10 +603,17 @@ By following these steps, you'll have your virtual machine set up and ready for 
         - This time KDE windows were still visible for several seconds so maybe something was not closed properly
      
 
-### Another VM boot
+### Mouse fix attempt #1
 
 **Report (mouse issue):**
-- TODO
+- Mouse worked in Windows but not back in Debian
+
+**Next steps**
+- Also set the tim to 5s in the exit script (TODO)
+
+### Mouse fix attempt #2
+
+--------------------------------
 
 **Next steps (audio issue):**
     - Figure out why `ich9` is the newest available option in the VM manager and whether I should even be attempting to use it
