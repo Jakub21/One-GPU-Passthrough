@@ -497,6 +497,33 @@ By following these steps, you'll have your virtual machine set up and ready for 
     - The only issue is that my mouse did not work (pointing had to be conducted via VNC)
     - After shutting down Windows, Debian + Plasma returned to the screen
     - All windows / applications have been closed (somewhat unexpected) and the mouse still did not work
+  3. Another VM reboot
+    - Mouse problem resolved itself
+      - However during audio tweaks it still sometimes broke after returning to Debian
+    - I tested audio in the VM and it is not working (I am not using the GPU audio interface that's been passed through)
+    - Use `lspci | grep -i audio` to find the correct audio device
+      - In my case that's `00:1f.3 Audio device: Intel Corporation 200 Series PCH HD Audio`
+    - Use `lspci -v` to find which kernel modules use this device
+
+          00:1f.3 Audio device: Intel Corporation 200 Series PCH HD Audio
+                  Subsystem: Micro-Star International Co., Ltd. [MSI] Device da62
+                  Flags: bus master, fast devsel, latency 32, IRQ 148, IOMMU group 13
+                  Memory at 2fff020000 (64-bit, non-prefetchable) [size=16K]
+                  Memory at 2fff000000 (64-bit, non-prefetchable) [size=64K]
+                  Capabilities: <access denied>
+                  Kernel driver in use: snd_hda_intel
+                  Kernel modules: snd_hda_intel, snd_soc_avs
+
+    - Edit libvirt hooks to also stop and restart those modules (similar to `nouveau`)
+      - `start.sh`: `sudo rmmod snd_hda_intel`, `sudo rmmod snd_soc_avs`
+      - `revert.sh`: `modprobe snd_hda_intel`, `modprobe snd_soc_avs`
+     
+    - Edit the VM settings again
+      - Remove any `Sound` devices
+        - I tried using them and simply editing their PCIe info but that did not work 
+      - Click `Add Hardware`, select `PCI Host Device` and select the Audio device
+  
+    4. Attempt with audio via PCIE
 
 18. **Add the Hardware to the VM**
 - Click on Add Hardware and select **PCI Host Device**.
