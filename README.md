@@ -524,6 +524,9 @@ By following these steps, you'll have your virtual machine set up and ready for 
       - Click `Add Hardware`, select `PCI Host Device` and select the Audio device
   
     4. Attempt with audio via PCIE
+       - Something crashed, Windows never started and instead what I saw was Debian login screen
+       - Probably something to do with IOMMU device grouping (?)
+       - At least audio and the mouse both work
 
 18. **Add the Hardware to the VM**
 - Click on Add Hardware and select **PCI Host Device**.
