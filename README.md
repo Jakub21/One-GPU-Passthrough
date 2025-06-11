@@ -8,7 +8,7 @@ My setup:
 - MB: MSI Z270 M3
   - Dual monitor option enabled, second monitor connected to the MB
 - OS: Debian 13 rc1 + KDE Plasma + Wayland
-  - Proprietary GPU driver
+  - Open source GPU driver `nouveau`
   - All packages up to date as of June 2025
 
 -----------------
@@ -285,17 +285,19 @@ By following these steps, you'll have your virtual machine set up and ready for 
 
     - Old procedure no longer works - a config without Spice cannot be applied
       > Error changing VM configuration: unsupported configuration: chardev 'spicevmc' not supported without spice graphics
+      > 
       > Refer to https://bbs.archlinux.org/viewtopic.php?id=277087 for details
+
       - Old procedure
         - Go to **Display Spice**.
         - Change Type to **VNC server**.
         - Change Address to **All interfaces**
 
-        ![Screenshot from 2024-09-07 13-38-43](https://github.com/user-attachments/assets/24d333cf-5e6a-4eae-a72e-d90476301d91)
+          ![Screenshot from 2024-09-07 13-38-43](https://github.com/user-attachments/assets/24d333cf-5e6a-4eae-a72e-d90476301d91)
 
       - Fixed procedure
-        - Create a new graphics device and use the config from above
-        - Change Spice display listen type to None
+        - Instead of editing **Display Spice**, create a new graphics device and configure it to be the same as above
+        - Change **Display Spice** listen type to **None**
 
 17. **Setting Up libvirt hooks**
 
@@ -305,11 +307,11 @@ By following these steps, you'll have your virtual machine set up and ready for 
         which modprobe
         ```
      
-        If this does not return anything, modprobe must be either installed
+        If this does not return anything, modprobe must be either installed,
         ```bash
         sudo apt install kmod
         ```
-        or added to path
+        or added to path, which worked in my case.
         ```bash
         export PATH=$PATH:/sbin:/usr/sbin
         ```
@@ -357,10 +359,12 @@ By following these steps, you'll have your virtual machine set up and ready for 
       systemctl stop display-manager.service
       # Uncomment the following line if you use GDM
       #killall gdm-x-session
-      sudo rmmod nvidia_drm
-      sudo rmmod nvidia_uvm
-      sudo rmmod nvidia_modeset
-      sudo rmmod nvidia
+      # sudo rmmod nvidia_drm
+      # sudo rmmod nvidia_uvm
+      # sudo rmmod nvidia_modeset
+      # sudo rmmod nvidia
+      sudo rmmod nouveau
+      # why not modprobe -r nouveau?
 
       # Unbind VTconsoles
       echo 0 > /sys/class/vtconsole/vtcon0/bind
@@ -414,18 +418,19 @@ By following these steps, you'll have your virtual machine set up and ready for 
 
       # Reload modules
       modprobe -r vfio-pci
-      modprobe nvidia
-      modprobe nvidia_modeset
-      modprobe nvidia_uvm
-      modprobe nvidia_drm
+      modprobe nouveau
+      # modprobe nvidia
+      # modprobe nvidia_modeset
+      # modprobe nvidia_uvm
+      # modprobe nvidia_drm
 
       # Rebind VT consoles
-      echo 1 > /sys/class/vtconsole/vtcon0/bind
       # Some machines might have more than 1 virtual console. Add a line for each corresponding VTConsole
-      #echo 1 > /sys/class/vtconsole/vtcon1/bind
+      echo 1 > /sys/class/vtconsole/vtcon0/bind
+      echo 1 > /sys/class/vtconsole/vtcon1/bind
 
       # commenting out
-      # because nvidia-xconfig does not exist on my Debian 13 + KDE + Wayland
+      # because nvidia-xconfig does not exist on my Debian 13 + KDE + Wayland + Nouveau
       # nvidia-xconfig --query-gpu-info > /dev/null 2>&1
       echo "efi-framebuffer.0" > /sys/bus/platform/drivers/efi-framebuffer/bind
 
@@ -445,7 +450,7 @@ By following these steps, you'll have your virtual machine set up and ready for 
 
 - To find those numbers for your specific system type this command
   ```bash
-  lspci | grep NVIDIA
+  lspci | grep -i nvidia  # your GPU vendor
   ```
   In my case those are the numbers (You probably have different numbers or even more that two PCIs)
 
@@ -455,7 +460,11 @@ By following these steps, you'll have your virtual machine set up and ready for 
 
 - Same goes for the modules. If you have **AMD** or **Intel** find those modules for your system and replace them.
 
-![Screenshot from 2024-09-07 14-34-03](https://github.com/user-attachments/assets/0852a2ad-6d45-4fc3-a631-613780cd8fc9)
+  ![Screenshot from 2024-09-07 14-34-03](https://github.com/user-attachments/assets/0852a2ad-6d45-4fc3-a631-613780cd8fc9)
+  
+  To determine which modules must be replaced, use `lsmod` and grep the output. Open source NVidia driver will not be found if searching for `nvidia` because it is called `nouveau`. My Intel HD Graphics driver is called `i915`.
+
+  Which modules must be stopped when using `nouveau` is yet to be determined as of now. First attempt will only involve the `nouveau` module itself.
 
 18. **Add the Hardware to the VM**
 - Click on Add Hardware and select **PCI Host Device**.
