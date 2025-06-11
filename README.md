@@ -482,12 +482,17 @@ By following these steps, you'll have your virtual machine set up and ready for 
   To determine which modules must be replaced, use `lsmod` and grep the output. Open source NVidia driver will not be found if searching for `nvidia` because it is called `nouveau`. My Intel HD Graphics driver is called `i915`.
 
   Which modules must be stopped when using `nouveau` is yet to be determined as of now.
+
   1. First attempt will only involve the `nouveau` module itself.
+    Report:
     - Fail.
     - Another monitor (connected to MB) also went black. Could this be somehow related to `systemctl stop display-manager.service` in `start.sh`?
     - Windows did not take over the GPU.
     - VNC was not available at the time to debug
+
   2. Another attempt is exactly the same but with VNC connection to another machine
+
+    Report:
     - Success.
     - Several seconds after the screen went black, I connected to Windows via VNC
     - Notifications appeared about my mouse and keyboard being set up
@@ -497,10 +502,15 @@ By following these steps, you'll have your virtual machine set up and ready for 
     - The only issue is that my mouse did not work (pointing had to be conducted via VNC)
     - After shutting down Windows, Debian + Plasma returned to the screen
     - All windows / applications have been closed (somewhat unexpected) and the mouse still did not work
+    - 
   3. Another VM reboot
+
+    Report:
     - Mouse problem resolved itself
       - However during audio tweaks it still sometimes broke after returning to Debian
     - I tested audio in the VM and it is not working (I am not using the GPU audio interface that's been passed through)
+ 
+    Next steps:
     - Use `lspci | grep -i audio` to find the correct audio device
       - In my case that's `00:1f.3 Audio device: Intel Corporation 200 Series PCH HD Audio`
     - Use `lspci -v` to find which kernel modules use this device
@@ -524,9 +534,17 @@ By following these steps, you'll have your virtual machine set up and ready for 
       - Click `Add Hardware`, select `PCI Host Device` and select the Audio device
   
     4. Attempt with audio via PCIE
+
+       Report:
        - Something crashed, Windows never started and instead what I saw was Debian login screen
        - Probably something to do with IOMMU device grouping (?)
        - At least audio and the mouse both work
+       
+       Next steps:
+       - Remove that PCIe device and go back to the `Sound` one, maybe it will work with that module unloading
+      
+    5. Attempt #2 with ich9 audio
+
 
 18. **Add the Hardware to the VM**
 - Click on Add Hardware and select **PCI Host Device**.
