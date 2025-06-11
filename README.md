@@ -601,7 +601,70 @@ By following these steps, you'll have your virtual machine set up and ready for 
 - Mouse issue:
     - Lenghten the sleep time in the libvirt **start** hook from 3 to 5 seconds.
         - This time KDE windows were still visible for several seconds so maybe something was not closed properly
-- Audio issue:
+     
+
+### Another VM boot
+
+**Report (mouse issue):**
+- TODO
+
+**Next steps (audio issue):**
     - Figure out why `ich9` is the newest available option in the VM manager and whether I should even be attempting to use it
         - (It's from 2007) [en.wikipedia.org](https://en.wikipedia.org/wiki/I/O_Controller_Hub#ICH9)
     - My MB specs lists `Realtek ALC1220 Codec` as rear panel audio
+    - Used `aplay -lL`, this excerpt confirms that `Realtek ALC1220` is recognized. There were also entries called `ALC1220 Digital` but those ports are not being used.
+
+          ...
+          hw:CARD=PCH,DEV=0
+              HDA Intel PCH, ALC1220 Analog
+              Direct hardware device without any conversions
+          ...
+          plughw:CARD=PCH,DEV=0
+              HDA Intel PCH, ALC1220 Analog
+              Hardware device with all software conversions
+          ...
+          **** List of PLAYBACK Hardware Devices ****
+          card 0: PCH [HDA Intel PCH], device 0: ALC1220 Analog [ALC1220 Analog]
+            Subdevices: 1/1
+            Subdevice #0: subdevice #0
+          ...
+
+    - Used `lsmod | grep ^snd;`, the output points to more modules to unload in libvirt hooks
+  
+          snd_seq_dummy          12288  0
+          snd_hrtimer            12288  1
+          snd_seq               110592  7 snd_seq_dummy
+          snd_seq_device         16384  1 snd_seq
+          snd_soc_avs           212992  0
+          snd_soc_hda_codec      24576  1 snd_soc_avs
+          snd_hda_ext_core       36864  2 snd_soc_avs,snd_soc_hda_codec
+          snd_hda_codec_realtek   217088  1
+          snd_soc_core          421888  2 snd_soc_avs,snd_soc_hda_codec
+          snd_hda_codec_generic   114688  1 snd_hda_codec_realtek
+          snd_hda_scodec_component    20480  1 snd_hda_codec_realtek
+          snd_hda_codec_hdmi     98304  2
+          snd_compress           28672  2 snd_soc_avs,snd_soc_core
+          snd_pcm_dmaengine      16384  1 snd_soc_core
+          snd_hda_intel          61440  2
+          snd_intel_dspcfg       40960  2 snd_soc_avs,snd_hda_intel
+          snd_intel_sdw_acpi     16384  1 snd_intel_dspcfg
+          snd_hda_codec         217088  6 snd_hda_codec_generic,snd_soc_avs,snd_hda_codec_hdmi,snd_soc_hda_codec,snd_hda_intel,snd_hda_codec_realtek
+          snd_hda_core          143360  8 snd_hda_codec_generic,snd_soc_avs,snd_hda_codec_hdmi,snd_soc_hda_codec,snd_hda_intel,snd_hda_ext_core,snd_hda_codec,snd_hda_codec_realtek
+          snd_hwdep              20480  1 snd_hda_codec
+          snd_pcm               184320  8 snd_soc_avs,snd_hda_codec_hdmi,snd_hda_intel,snd_hda_codec,snd_compress,snd_soc_core,snd_hda_core,snd_pcm_dmaengine
+          snd_timer              53248  3 snd_seq,snd_hrtimer,snd_pcm
+          snd                   151552  18 snd_hda_codec_generic,snd_seq,snd_seq_device,snd_hda_codec_hdmi,snd_hwdep,snd_hda_intel,snd_hda_codec,snd_hda_codec_realtek,snd_timer,snd_compress,snd_soc_core,snd_pcm
+
+
+    - Most notably `snd_hda_codec_realtek`, `snd_hda_codec` and `snd_intel_dspcfg`
+        - I could remove even more modules like `snd_soc_avs` if I run out of ideas
+   
+    - Command `sudo fuser -v /dev/snd/*` outputs processes responsible for audio
+          - This is well explained in this [archlinux.org thread]([url](https://bbs.archlinux.org/viewtopic.php?pid=1639728#p1639728)) even though my setup is different.
+   
+                                 USER        PID ACCESS COMMAND
+            /dev/snd/controlC0:  disken     1184 F.... wireplumber
+            /dev/snd/controlC1:  disken     1184 F.... wireplumber
+            /dev/snd/seq:        disken     1181 F.... pipewire
+
+        - If removing modules does not work I should make sure that those do not interfere
