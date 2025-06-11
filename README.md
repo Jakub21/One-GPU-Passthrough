@@ -3,8 +3,8 @@
 Forked because the original guide did not work completely with my setup.
 
 My setup:
-- CPU: Intel i5 7600K
-- GPU: NVidia GTX1060 6gb (MSI)
+- CPU: Intel Core i5 7600K (x4)
+- GPU: NVidia GTX1060 6GB (MSI)
 - MB: MSI Z270 M3
   - Dual monitor option enabled, second monitor connected to the MB
 - Host OS: Debian 13 rc1 + KDE Plasma + Wayland
@@ -76,6 +76,7 @@ To enable IOMMU, you first need to identify which bootloader your system uses. C
      ```bash
      sudo test -e /boot/grub/grub.cfg && echo -e "\nGRUB detected" || sudo test -e /boot/loader/loader.conf && echo -e "\nsystemd-boot detected"
      ```
+     > NOTE: On default Debian both are detected with this script but it ships with GRUB.
 
 #### Enable IOMMU in GRUB
 
