@@ -488,6 +488,15 @@ By following these steps, you'll have your virtual machine set up and ready for 
     - Windows did not take over the GPU.
     - VNC was not available at the time to debug
   2. Another attempt is exactly the same but with VNC connection to another machine
+    - Success.
+    - Several seconds after the screen went black, I connected to Windows via VNC
+    - Notifications appeared about my mouse and keyboard being set up
+    - Opened device manager and looked for issues, found an unrecognized display adaptor
+    - After a while Windows automatically recognized it as my NVidia GPU and installed the drivers
+    - The screen activated and revealed Windows in full resolution
+    - The only issue is that my mouse did not work (pointing had to be conducted via VNC)
+    - After shutting down Windows, Debian + Plasma returned to the screen
+    - All windows / applications have been closed (somewhat unexpected) and the mouse still did not work
 
 18. **Add the Hardware to the VM**
 - Click on Add Hardware and select **PCI Host Device**.
