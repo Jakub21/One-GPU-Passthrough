@@ -302,10 +302,18 @@ By following these steps, you'll have your virtual machine set up and ready for 
 
 16. **Verify VNC**
 
-    Before proceeding it is good to check if the VNC works.
+    Before proceeding it is good to check if the VNC works because it can be used for debug.
 
-    - Disable auto port
+    - Disable auto port and choose your own (suggested default of 5900 worked for me)
     - Download a viewer on another machine in the local network
+      - I used RealVNC Viewer (first search result)
+    - Assuming the VM has default network settings, follow this to connect
+      - File -> New connection
+      - In the field `VNC Server` put the IP of your host and the port like so `192.168.X.X:PORT`
+      - Set a name for the connection and press OK
+    - Ignore the unecrypted connection warning
+
+    This worked for me despite still having **Display Spice** enabled.
 
 18. **Setting Up libvirt hooks**
 
