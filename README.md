@@ -483,7 +483,11 @@ By following these steps, you'll have your virtual machine set up and ready for 
 
   Which modules must be stopped when using `nouveau` is yet to be determined as of now.
   1. First attempt will only involve the `nouveau` module itself.
-    - Fail. Another monitor (connected to MB) also went black. Windows did not take over the GPU.
+    - Fail.
+    - Another monitor (connected to MB) also went black. Could this be somehow related to `systemctl stop display-manager.service` in `start.sh`?
+    - Windows did not take over the GPU.
+    - VNC was not available at the time to debug
+  2. Another attempt is exactly the same but with VNC connection to another machine
 
 18. **Add the Hardware to the VM**
 - Click on Add Hardware and select **PCI Host Device**.
