@@ -1,3 +1,18 @@
+## Fork info
+
+Forked because the original guide did not work completely with my setup.
+
+My setup:
+- CPU: Intel i5 7600K
+- GPU: NVidia GTX1060 6gb (MSI)
+- MB: MSI Z270 M3
+  - Dual monitor option enabled, second monitor connected to the MB
+- OS: Debian 13 rc1 + KDE Plasma + Wayland
+  - Proprietary GPU driver
+  - All packages up to date as of June 2025
+
+-----------------
+
 ## Overview
 
 This repository provides a comprehensive guide to setting up **GPU passthrough** on Linux systems. GPU passthrough allows a virtual machine (VM) to directly access the host's GPU, enabling high-performance graphics rendering in a VM environment. This is particularly useful for tasks like gaming, 3D rendering, and running GPU-intensive applications in a virtualized setup.
@@ -283,6 +298,24 @@ By following these steps, you'll have your virtual machine set up and ready for 
         - Change Spice display listen type to None
 
 17. **Setting Up libvirt hooks**
+
+       
+    - Verify that modprobe is available.
+        ```bash
+        which modprobe
+        ```
+     
+        If this does not return anything, modprobe must be either installed
+        ```bash
+        sudo apt install kmod
+        ```
+        or added to path
+        ```bash
+        export PATH=$PATH:/sbin:/usr/sbin
+        ```
+        source: [bashcommands.com](https://bashcommands.com/bash-modprobe-command-not-found)
+
+
     - Create /etc/libvirt/hooks
       ```bash
       sudo mkdir -p /etc/libvirt/hooks
@@ -344,7 +377,7 @@ By following these steps, you'll have your virtual machine set up and ready for 
       virsh nodedev-detach pci_0000_01_00_1
 
       # Load VFIO Kernel Module
-      modprobe vfio-pci  # TODO: modprobe does not exist on my system https://stackoverflow.com/q/34800731
+      modprobe vfio-pci
       ```
 
       - **Save and make it Executable**:
@@ -379,7 +412,7 @@ By following these steps, you'll have your virtual machine set up and ready for 
 
       sleep 2
 
-      # Reload modules  # TODO: modprobe does not exist on my system
+      # Reload modules
       modprobe -r vfio-pci
       modprobe nvidia
       modprobe nvidia_modeset
@@ -412,7 +445,7 @@ By following these steps, you'll have your virtual machine set up and ready for 
 
 - To find those numbers for your specific system type this command
   ```bash
-  lspci
+  lspci | grep NVIDIA
   ```
   In my case those are the numbers (You probably have different numbers or even more that two PCIs)
 
