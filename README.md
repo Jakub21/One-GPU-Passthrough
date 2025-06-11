@@ -483,69 +483,6 @@ By following these steps, you'll have your virtual machine set up and ready for 
 
   Which modules must be stopped when using `nouveau` is yet to be determined as of now.
 
-  1. First attempt will only involve the `nouveau` module itself.
-    Report:
-    - Fail.
-    - Another monitor (connected to MB) also went black. Could this be somehow related to `systemctl stop display-manager.service` in `start.sh`?
-    - Windows did not take over the GPU.
-    - VNC was not available at the time to debug
-
-  2. Another attempt is exactly the same but with VNC connection to another machine
-
-    Report:
-    - Success.
-    - Several seconds after the screen went black, I connected to Windows via VNC
-    - Notifications appeared about my mouse and keyboard being set up
-    - Opened device manager and looked for issues, found an unrecognized display adaptor
-    - After a while Windows automatically recognized it as my NVidia GPU and installed the drivers
-    - The screen activated and revealed Windows in full resolution
-    - The only issue is that my mouse did not work (pointing had to be conducted via VNC)
-    - After shutting down Windows, Debian + Plasma returned to the screen
-    - All windows / applications have been closed (somewhat unexpected) and the mouse still did not work
-    - 
-  3. Another VM reboot
-
-    Report:
-    - Mouse problem resolved itself
-      - However during audio tweaks it still sometimes broke after returning to Debian
-    - I tested audio in the VM and it is not working (I am not using the GPU audio interface that's been passed through)
- 
-    Next steps:
-    - Use `lspci | grep -i audio` to find the correct audio device
-      - In my case that's `00:1f.3 Audio device: Intel Corporation 200 Series PCH HD Audio`
-    - Use `lspci -v` to find which kernel modules use this device
-
-          00:1f.3 Audio device: Intel Corporation 200 Series PCH HD Audio
-                  Subsystem: Micro-Star International Co., Ltd. [MSI] Device da62
-                  Flags: bus master, fast devsel, latency 32, IRQ 148, IOMMU group 13
-                  Memory at 2fff020000 (64-bit, non-prefetchable) [size=16K]
-                  Memory at 2fff000000 (64-bit, non-prefetchable) [size=64K]
-                  Capabilities: <access denied>
-                  Kernel driver in use: snd_hda_intel
-                  Kernel modules: snd_hda_intel, snd_soc_avs
-
-    - Edit libvirt hooks to also stop and restart those modules (similar to `nouveau`)
-      - `start.sh`: `sudo rmmod snd_hda_intel`, `sudo rmmod snd_soc_avs`
-      - `revert.sh`: `modprobe snd_hda_intel`, `modprobe snd_soc_avs`
-     
-    - Edit the VM settings again
-      - Remove any `Sound` devices
-        - I tried using them and simply editing their PCIe info but that did not work 
-      - Click `Add Hardware`, select `PCI Host Device` and select the Audio device
-  
-    4. Attempt with audio via PCIE
-
-       Report:
-       - Something crashed, Windows never started and instead what I saw was Debian login screen
-       - Probably something to do with IOMMU device grouping (?)
-       - At least audio and the mouse both work
-       
-       Next steps:
-       - Remove that PCIe device and go back to the `Sound` one, maybe it will work with that module unloading
-      
-    5. Attempt #2 with ich9 audio
-
-
 18. **Add the Hardware to the VM**
 - Click on Add Hardware and select **PCI Host Device**.
 - Select everything related to your **Graphics Card**.
@@ -564,3 +501,107 @@ By following these steps, you'll have your virtual machine set up and ready for 
 
  ![remove](https://github.com/user-attachments/assets/281d0499-4d43-4339-8219-bc7a0f53e410)
 
+
+
+
+------------------------------
+## Test log
+
+
+### First attempt
+
+**Conditions:**
+
+- Only the `nouveau` module in the libvirt hooks.
+
+**Report:**
+
+- Fail.
+- Another monitor (connected to MB) also went black.
+  - Could this be somehow related to `systemctl stop display-manager.service` in `start.sh`?
+- Windows did not take over the GPU.
+- VNC was not available at the time to debug
+
+
+### Attempt 2
+
+**Conditions:**
+
+- exactly the same as above but with VNC connection to another machine (see the `Verify VNC` chapter) 
+
+**Report:**
+
+- Success.
+- Several seconds after the screen went black, I connected to Windows via VNC
+- Notifications appeared about my mouse and keyboard being set up
+- Opened device manager and looked for issues, found an unrecognized display adaptor
+- After a while Windows automatically recognized it as my NVidia GPU and installed the drivers
+- The screen activated and revealed Windows in full resolution
+- The only issue is that my mouse did not work (pointing had to be conducted via VNC)
+- After shutting down Windows, Debian + Plasma returned to the screen
+- All windows / applications have been closed (somewhat unexpected) and the mouse still did not work
+
+
+### Attempt 3
+
+**Report:**
+
+- ~~Mouse problem resolved itself~~
+  - However during audio tweaks it still sometimes broke after returning to Debian
+- I tested audio in the VM and it is not working (I am not using the GPU audio interface that's been passed through)
+
+**Next steps:**
+
+- Use `lspci | grep -i audio` to find the correct audio device
+  - In my case that's `00:1f.3 Audio device: Intel Corporation 200 Series PCH HD Audio`
+- Use `lspci -v` to find which kernel modules use this device
+
+      00:1f.3 Audio device: Intel Corporation 200 Series PCH HD Audio
+              Subsystem: Micro-Star International Co., Ltd. [MSI] Device da62
+              Flags: bus master, fast devsel, latency 32, IRQ 148, IOMMU group 13
+              Memory at 2fff020000 (64-bit, non-prefetchable) [size=16K]
+              Memory at 2fff000000 (64-bit, non-prefetchable) [size=64K]
+              Capabilities: <access denied>
+              Kernel driver in use: snd_hda_intel
+              Kernel modules: snd_hda_intel, snd_soc_avs
+
+- Edit libvirt hooks to also stop and restart those modules (similar to `nouveau`)
+  - `start.sh`: `sudo rmmod snd_hda_intel`, `sudo rmmod snd_soc_avs`
+  - `revert.sh`: `modprobe snd_hda_intel`, `modprobe snd_soc_avs`
+ 
+- Edit the VM settings again
+  - Remove any `Sound` devices
+    - I tried using them and simply editing their PCIe info but that did not work 
+  - Click `Add Hardware`, select `PCI Host Device` and select the Audio device
+
+
+### Attempt with audio via PCIE
+
+**Report:**
+
+- Something crashed, Windows never started and instead what I saw was Debian login screen
+- Probably something to do with IOMMU device grouping (?)
+- At least audio and the mouse both work
+ 
+**Next steps:**
+ 
+- Remove that PCIe device and go back to the `Sound` one, maybe it will work with that module unloading
+
+
+### Attempt #2 with ich9 audio
+
+**Report:**
+ 
+- Windows booted up but with neither audio nor mouse (interestingly enough even the pointer was also missing)
+- No issues found in Device Manager
+- Back in Debian audio worked but pointing didn't
+
+**Next steps:**
+
+- Mouse issue:
+ - Lenghten the sleep time in the libvirt **start** hook from 3 to 5 seconds.
+   - This time KDE windows were still visible for several seconds so maybe something was not closed properly
+- Audio issue:
+ - Figure out why `ich9` is the newest available option in the VM manager and whether I should even be attempting to use it
+   - (It's from 2007) [en.wikipedia.org](https://en.wikipedia.org/wiki/I/O_Controller_Hub#ICH9)
+ - My MB specs lists `Realtek ALC1220 Codec` as rear panel audio
