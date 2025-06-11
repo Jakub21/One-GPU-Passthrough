@@ -518,7 +518,7 @@ By following these steps, you'll have your virtual machine set up and ready for 
 
 - Fail.
 - Another monitor (connected to MB) also went black.
-  - Could this be somehow related to `systemctl stop display-manager.service` in `start.sh`?
+    - Could this be somehow related to `systemctl stop display-manager.service` in `start.sh`?
 - Windows did not take over the GPU.
 - VNC was not available at the time to debug
 
@@ -547,13 +547,13 @@ By following these steps, you'll have your virtual machine set up and ready for 
 **Report:**
 
 - ~~Mouse problem resolved itself~~
-  - However during audio tweaks it still sometimes broke after returning to Debian
+    - However during audio tweaks it still sometimes broke after returning to Debian
 - I tested audio in the VM and it is not working (I am not using the GPU audio interface that's been passed through)
 
 **Next steps:**
 
 - Use `lspci | grep -i audio` to find the correct audio device
-  - In my case that's `00:1f.3 Audio device: Intel Corporation 200 Series PCH HD Audio`
+    - In my case that's `00:1f.3 Audio device: Intel Corporation 200 Series PCH HD Audio`
 - Use `lspci -v` to find which kernel modules use this device
 
       00:1f.3 Audio device: Intel Corporation 200 Series PCH HD Audio
@@ -566,13 +566,13 @@ By following these steps, you'll have your virtual machine set up and ready for 
               Kernel modules: snd_hda_intel, snd_soc_avs
 
 - Edit libvirt hooks to also stop and restart those modules (similar to `nouveau`)
-  - `start.sh`: `sudo rmmod snd_hda_intel`, `sudo rmmod snd_soc_avs`
-  - `revert.sh`: `modprobe snd_hda_intel`, `modprobe snd_soc_avs`
+    - `start.sh`: `sudo rmmod snd_hda_intel`, `sudo rmmod snd_soc_avs`
+    - `revert.sh`: `modprobe snd_hda_intel`, `modprobe snd_soc_avs`
  
 - Edit the VM settings again
-  - Remove any `Sound` devices
-    - I tried using them and simply editing their PCIe info but that did not work 
-  - Click `Add Hardware`, select `PCI Host Device` and select the Audio device
+    - Remove any `Sound` devices
+        - I tried using them and simply editing their PCIe info but that did not work 
+    - Click `Add Hardware`, select `PCI Host Device` and select the Audio device
 
 
 ### Attempt with audio via PCIE
@@ -599,9 +599,9 @@ By following these steps, you'll have your virtual machine set up and ready for 
 **Next steps:**
 
 - Mouse issue:
- - Lenghten the sleep time in the libvirt **start** hook from 3 to 5 seconds.
-   - This time KDE windows were still visible for several seconds so maybe something was not closed properly
+    - Lenghten the sleep time in the libvirt **start** hook from 3 to 5 seconds.
+        - This time KDE windows were still visible for several seconds so maybe something was not closed properly
 - Audio issue:
- - Figure out why `ich9` is the newest available option in the VM manager and whether I should even be attempting to use it
-   - (It's from 2007) [en.wikipedia.org](https://en.wikipedia.org/wiki/I/O_Controller_Hub#ICH9)
- - My MB specs lists `Realtek ALC1220 Codec` as rear panel audio
+    - Figure out why `ich9` is the newest available option in the VM manager and whether I should even be attempting to use it
+        - (It's from 2007) [en.wikipedia.org](https://en.wikipedia.org/wiki/I/O_Controller_Hub#ICH9)
+    - My MB specs lists `Realtek ALC1220 Codec` as rear panel audio
