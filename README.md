@@ -11,6 +11,7 @@ My setup:
   - Open source GPU driver `nouveau`
   - All packages up to date as of June 2025
 - Guest OS: Windows 10
+- Game tested: StarCraft II
 
 -----------------
 
@@ -267,7 +268,7 @@ By following these steps, you'll have your virtual machine set up and ready for 
     - Shut Down the System.
 
     - Remove the Drivers we added above
-      - Maybe due to a mistake but a second Disk also appeared with the same size as the CD. Not removing it causes an error later on.
+      - Maybe due to a mistake but a second Disk appeared with the same size as the CD. Not removing it causes an error later on.
 
       ![Screenshot from 2024-09-10 10-43-34](https://github.com/user-attachments/assets/b91f43dd-b4c3-4cd5-8ccc-ad88bc353f71)
 
@@ -549,6 +550,7 @@ By following these steps, you'll have your virtual machine set up and ready for 
 - ~~Mouse problem resolved itself~~
     - However during audio tweaks it still sometimes broke after returning to Debian
 - I tested audio in the VM and it is not working (I am not using the GPU audio interface that's been passed through)
+  - Audio is tested by opening Firefox and playing a YouTube video
 
 **Next steps:**
 
@@ -592,7 +594,7 @@ By following these steps, you'll have your virtual machine set up and ready for 
 
 **Report:**
  
-- Windows booted up but with neither audio nor mouse (interestingly enough even the pointer was also missing)
+- Windows booted up but with neither audio nor mouse (interestingly enough even the pointer was missing)
 - No issues found in Device Manager
 - Back in Debian audio worked but pointing didn't
 
@@ -609,69 +611,132 @@ By following these steps, you'll have your virtual machine set up and ready for 
 - Mouse worked in Windows but not back in Debian
 
 **Next steps**
-- Also set the tim to 5s in the exit script (TODO)
+- Set the time to 5s in the exit script
+
 
 ### Mouse fix attempt #2
 
---------------------------------
+**Report (mouse issue):**
+- After 6 reboots mouse stopped working in Debian only once
+- The results are inconsistent and the 5s delay in both scripts makes testing very cumbersome
+- Reverting back to 3s in both scripts
+
+
+### Back to the audio issue
+
+**Research**
+- Figure out why `ich9` is the newest available option in the VM manager and whether I should even be attempting to use it
+    - (It's from 2007) [en.wikipedia.org](https://en.wikipedia.org/wiki/I/O_Controller_Hub#ICH9)
+- My MB specs lists `Realtek ALC1220 Codec` as rear panel audio
+- Used `aplay -lL`, this excerpt confirms that `Realtek ALC1220` is recognized. There were also entries called `ALC1220 Digital` but I am not currently using those.
+
+      ...
+      hw:CARD=PCH,DEV=0
+          HDA Intel PCH, ALC1220 Analog
+          Direct hardware device without any conversions
+      ...
+      plughw:CARD=PCH,DEV=0
+          HDA Intel PCH, ALC1220 Analog
+          Hardware device with all software conversions
+      ...
+      **** List of PLAYBACK Hardware Devices ****
+      card 0: PCH [HDA Intel PCH], device 0: ALC1220 Analog [ALC1220 Analog]
+        Subdevices: 1/1
+        Subdevice #0: subdevice #0
+      ...
+
+- Used `lsmod | grep ^snd;`, the output points to more modules to unload in libvirt hooks
+
+      snd_seq_dummy          12288  0
+      snd_hrtimer            12288  1
+      snd_seq               110592  7 snd_seq_dummy
+      snd_seq_device         16384  1 snd_seq
+      snd_soc_avs           212992  0
+      snd_soc_hda_codec      24576  1 snd_soc_avs
+      snd_hda_ext_core       36864  2 snd_soc_avs,snd_soc_hda_codec
+      snd_hda_codec_realtek   217088  1
+      snd_soc_core          421888  2 snd_soc_avs,snd_soc_hda_codec
+      snd_hda_codec_generic   114688  1 snd_hda_codec_realtek
+      snd_hda_scodec_component    20480  1 snd_hda_codec_realtek
+      snd_hda_codec_hdmi     98304  2
+      snd_compress           28672  2 snd_soc_avs,snd_soc_core
+      snd_pcm_dmaengine      16384  1 snd_soc_core
+      snd_hda_intel          61440  2
+      snd_intel_dspcfg       40960  2 snd_soc_avs,snd_hda_intel
+      snd_intel_sdw_acpi     16384  1 snd_intel_dspcfg
+      snd_hda_codec         217088  6 snd_hda_codec_generic,snd_soc_avs,snd_hda_codec_hdmi,snd_soc_hda_codec,snd_hda_intel,snd_hda_codec_realtek
+      snd_hda_core          143360  8 snd_hda_codec_generic,snd_soc_avs,snd_hda_codec_hdmi,snd_soc_hda_codec,snd_hda_intel,snd_hda_ext_core,snd_hda_codec,snd_hda_codec_realtek
+      snd_hwdep              20480  1 snd_hda_codec
+      snd_pcm               184320  8 snd_soc_avs,snd_hda_codec_hdmi,snd_hda_intel,snd_hda_codec,snd_compress,snd_soc_core,snd_hda_core,snd_pcm_dmaengine
+      snd_timer              53248  3 snd_seq,snd_hrtimer,snd_pcm
+      snd                   151552  18 snd_hda_codec_generic,snd_seq,snd_seq_device,snd_hda_codec_hdmi,snd_hwdep,snd_hda_intel,snd_hda_codec,snd_hda_codec_realtek,snd_timer,snd_compress,snd_soc_core,snd_pcm
+
+- Command `sudo fuser -v /dev/snd/*` outputs processes responsible for audio
+      - This is well explained in this [archlinux.org thread]([url](https://bbs.archlinux.org/viewtopic.php?pid=1639728#p1639728)) even though my setup is different.
+      - Most importantly this reveals that `pipewire` is used.
+
+                              USER        PID ACCESS COMMAND
+        /dev/snd/controlC0:  disken     1184 F.... wireplumber
+        /dev/snd/controlC1:  disken     1184 F.... wireplumber
+        /dev/snd/seq:        disken     1181 F.... pipewire
+
+    - If removing modules does not work I should make sure that those do not interfere
 
 **Next steps (audio issue):**
-    - Figure out why `ich9` is the newest available option in the VM manager and whether I should even be attempting to use it
-        - (It's from 2007) [en.wikipedia.org](https://en.wikipedia.org/wiki/I/O_Controller_Hub#ICH9)
-    - My MB specs lists `Realtek ALC1220 Codec` as rear panel audio
-    - Used `aplay -lL`, this excerpt confirms that `Realtek ALC1220` is recognized. There were also entries called `ALC1220 Digital` but those ports are not being used.
-
-          ...
-          hw:CARD=PCH,DEV=0
-              HDA Intel PCH, ALC1220 Analog
-              Direct hardware device without any conversions
-          ...
-          plughw:CARD=PCH,DEV=0
-              HDA Intel PCH, ALC1220 Analog
-              Hardware device with all software conversions
-          ...
-          **** List of PLAYBACK Hardware Devices ****
-          card 0: PCH [HDA Intel PCH], device 0: ALC1220 Analog [ALC1220 Analog]
-            Subdevices: 1/1
-            Subdevice #0: subdevice #0
-          ...
-
-    - Used `lsmod | grep ^snd;`, the output points to more modules to unload in libvirt hooks
-  
-          snd_seq_dummy          12288  0
-          snd_hrtimer            12288  1
-          snd_seq               110592  7 snd_seq_dummy
-          snd_seq_device         16384  1 snd_seq
-          snd_soc_avs           212992  0
-          snd_soc_hda_codec      24576  1 snd_soc_avs
-          snd_hda_ext_core       36864  2 snd_soc_avs,snd_soc_hda_codec
-          snd_hda_codec_realtek   217088  1
-          snd_soc_core          421888  2 snd_soc_avs,snd_soc_hda_codec
-          snd_hda_codec_generic   114688  1 snd_hda_codec_realtek
-          snd_hda_scodec_component    20480  1 snd_hda_codec_realtek
-          snd_hda_codec_hdmi     98304  2
-          snd_compress           28672  2 snd_soc_avs,snd_soc_core
-          snd_pcm_dmaengine      16384  1 snd_soc_core
-          snd_hda_intel          61440  2
-          snd_intel_dspcfg       40960  2 snd_soc_avs,snd_hda_intel
-          snd_intel_sdw_acpi     16384  1 snd_intel_dspcfg
-          snd_hda_codec         217088  6 snd_hda_codec_generic,snd_soc_avs,snd_hda_codec_hdmi,snd_soc_hda_codec,snd_hda_intel,snd_hda_codec_realtek
-          snd_hda_core          143360  8 snd_hda_codec_generic,snd_soc_avs,snd_hda_codec_hdmi,snd_soc_hda_codec,snd_hda_intel,snd_hda_ext_core,snd_hda_codec,snd_hda_codec_realtek
-          snd_hwdep              20480  1 snd_hda_codec
-          snd_pcm               184320  8 snd_soc_avs,snd_hda_codec_hdmi,snd_hda_intel,snd_hda_codec,snd_compress,snd_soc_core,snd_hda_core,snd_pcm_dmaengine
-          snd_timer              53248  3 snd_seq,snd_hrtimer,snd_pcm
-          snd                   151552  18 snd_hda_codec_generic,snd_seq,snd_seq_device,snd_hda_codec_hdmi,snd_hwdep,snd_hda_intel,snd_hda_codec,snd_hda_codec_realtek,snd_timer,snd_compress,snd_soc_core,snd_pcm
+- Changes in the setup script
+    - Kill all `pipewire` and `wireplumber` processes
+        ```bash
+        pkill -f pipewire
+        pkill -f wireplumber
+        ```
+    - Remove modules `snd_hda_codec_realtek`, `snd_hda_codec` and `snd_intel_dspcfg`
+        ```bash
+        sudo rmmod snd_hda_codec_realtek
+        sudo rmmod snd_hda_codec
+        sudo rmmod snd_intel_dspcfg
+        ```
+- Changes in the revert script
+    - Restart removed modules
+        ```bash
+        modprobe snd_hda_codec_realtek
+        modprobe snd_hda_codec
+        modprobe snd_intel_dspcfg
+        ```
+    - Restart pipewire
+        ```bash
+        pipewire
+        ```
 
 
-    - Most notably `snd_hda_codec_realtek`, `snd_hda_codec` and `snd_intel_dspcfg`
-        - I could remove even more modules like `snd_soc_avs` if I run out of ideas
-   
-    - Command `sudo fuser -v /dev/snd/*` outputs processes responsible for audio
-          - This is well explained in this [archlinux.org thread]([url](https://bbs.archlinux.org/viewtopic.php?pid=1639728#p1639728)) even though my setup is different.
-   
-                                 USER        PID ACCESS COMMAND
-            /dev/snd/controlC0:  disken     1184 F.... wireplumber
-            /dev/snd/controlC1:  disken     1184 F.... wireplumber
-            /dev/snd/seq:        disken     1181 F.... pipewire
+### Attempt #3 with ich9 audio
 
-        - If removing modules does not work I should make sure that those do not interfere
+**Report:**
+- No audio in Windows, works back in Debian
+- No changes in Device Mananger
+
+**Next steps:**
+- Connect my spare USB audio card and check if it can be passed through more easily
+    - Adjust physical hardware
+    - Open VM settings
+      - Remove `sound` device
+      - Add `USB Host Device` and select the sound card
+
+
+### Attempt #1 with USB sound card
+
+**Report:**
+- Audio works in the system but in game it stops for about 1s every few minutes
+    - Further tests required
+- In-game FPS meter reports stable numbers but the actual performance feels worse
+
+**Next steps:**
+- Adjust CPU topology
+    - Change `3:1:1` (sockets:cores:threads) to `1:3:1` without proactively checking if those numbers make sense
+
+
+### Attempts with new CPU topology
+
+**Report**
+- After several failed attempts with different topologies, I think `1:3:1` provides somewhat improved performance but more testing is needed because this coincided with some additional tweaks, primarily in game settings.
+- Mouse failure after returning to Debian is more consistent but I can restore basic functionality by re-plugging the cable (cannot use the builtin DPI switch for some reason and the indicator lights are off).
+- Audio issues intensified during the early part of the game but this improved after several minutes.
