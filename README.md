@@ -1,3 +1,20 @@
+## Fork info
+
+Forked because the original guide did not work completely with my setup.
+
+My setup:
+- CPU: Intel Core i5 7600K (x4)
+- GPU: NVidia GTX1060 6GB (MSI)
+- MB: MSI Z270 M3
+  - Dual monitor option enabled, second monitor connected to the MB
+- Host OS: Debian 13 rc1 + KDE Plasma + Wayland
+  - Open source GPU driver `nouveau`
+  - All packages up to date as of June 2025
+- Guest OS: Windows 10
+- Game tested: StarCraft II
+
+-----------------
+
 ## Overview
 
 This repository provides a comprehensive guide to setting up **GPU passthrough** on Linux systems. GPU passthrough allows a virtual machine (VM) to directly access the host's GPU, enabling high-performance graphics rendering in a VM environment. This is particularly useful for tasks like gaming, 3D rendering, and running GPU-intensive applications in a virtualized setup.
@@ -60,6 +77,7 @@ To enable IOMMU, you first need to identify which bootloader your system uses. C
      ```bash
      sudo test -e /boot/grub/grub.cfg && echo -e "\nGRUB detected" || sudo test -e /boot/loader/loader.conf && echo -e "\nsystemd-boot detected"
      ```
+     > NOTE: On default Debian both are detected with this script but it ships with GRUB.
 
 #### Enable IOMMU in GRUB
 
@@ -250,6 +268,7 @@ By following these steps, you'll have your virtual machine set up and ready for 
     - Shut Down the System.
 
     - Remove the Drivers we added above
+      - Maybe due to a mistake but a second Disk appeared with the same size as the CD. Not removing it causes an error later on.
 
       ![Screenshot from 2024-09-10 10-43-34](https://github.com/user-attachments/assets/b91f43dd-b4c3-4cd5-8ccc-ad88bc353f71)
 
@@ -266,13 +285,57 @@ By following these steps, you'll have your virtual machine set up and ready for 
 ![Screenshot from 2024-09-07 13-31-49](https://github.com/user-attachments/assets/3107a02a-c9c8-472f-abcb-26596c231bd8)
 
 15. **Set VNC (optional)**
-    - Go to **Display Spice**.
-    - Change Type to **VNC server**.
-    - Change Address to **All interfaces**
 
-    ![Screenshot from 2024-09-07 13-38-43](https://github.com/user-attachments/assets/24d333cf-5e6a-4eae-a72e-d90476301d91)
+    - Old procedure no longer works - a config without Spice cannot be applied
+      > Error changing VM configuration: unsupported configuration: chardev 'spicevmc' not supported without spice graphics
+      > 
+      > Refer to https://bbs.archlinux.org/viewtopic.php?id=277087 for details
 
-16. **Setting Up libvirt hooks**
+      - Old procedure
+        - Go to **Display Spice**.
+        - Change Type to **VNC server**.
+        - Change Address to **All interfaces**
+
+          ![Screenshot from 2024-09-07 13-38-43](https://github.com/user-attachments/assets/24d333cf-5e6a-4eae-a72e-d90476301d91)
+
+      - Fixed procedure
+        - Instead of editing **Display Spice**, create a new graphics device and configure it to be the same as above
+        - Change **Display Spice** listen type to **None**
+
+16. **Verify VNC**
+
+    Before proceeding it is good to check if the VNC works because it can be used for debug.
+
+    - Disable auto port and choose your own (suggested default of 5900 worked for me)
+    - Download a viewer on another machine in the local network
+      - I used RealVNC Viewer (first search result)
+    - Assuming the VM has default network settings, follow this to connect
+      - File -> New connection
+      - In the field `VNC Server` put the IP of your host and the port like so `192.168.X.X:PORT`
+      - Set a name for the connection and press OK
+    - Ignore the unecrypted connection warning
+
+    This worked for me despite still having **Display Spice** enabled.
+
+18. **Setting Up libvirt hooks**
+
+       
+    - Verify that modprobe is available.
+        ```bash
+        which modprobe
+        ```
+     
+        If this does not return anything, modprobe must be either installed,
+        ```bash
+        sudo apt install kmod
+        ```
+        or added to path, which worked in my case.
+        ```bash
+        export PATH=$PATH:/sbin:/usr/sbin
+        ```
+        source: [bashcommands.com](https://bashcommands.com/bash-modprobe-command-not-found)
+
+
     - Create /etc/libvirt/hooks
       ```bash
       sudo mkdir -p /etc/libvirt/hooks
@@ -314,10 +377,12 @@ By following these steps, you'll have your virtual machine set up and ready for 
       systemctl stop display-manager.service
       # Uncomment the following line if you use GDM
       #killall gdm-x-session
-      sudo rmmod nvidia_drm
-      sudo rmmod nvidia_uvm
-      sudo rmmod nvidia_modeset
-      sudo rmmod nvidia
+      # sudo rmmod nvidia_drm
+      # sudo rmmod nvidia_uvm
+      # sudo rmmod nvidia_modeset
+      # sudo rmmod nvidia
+      sudo rmmod nouveau
+      # why not modprobe -r nouveau?
 
       # Unbind VTconsoles
       echo 0 > /sys/class/vtconsole/vtcon0/bind
@@ -327,7 +392,7 @@ By following these steps, you'll have your virtual machine set up and ready for 
       echo efi-framebuffer.0 > /sys/bus/platform/drivers/efi-framebuffer/unbind
 
       # Avoid a Race condition by waiting 2 seconds. This can be calibrated to be shorter or longer if required for your system
-      sleep 2
+      sleep 3
 
       # Unbind the GPU from display driver
       virsh nodedev-detach pci_0000_01_00_0
@@ -371,17 +436,20 @@ By following these steps, you'll have your virtual machine set up and ready for 
 
       # Reload modules
       modprobe -r vfio-pci
-      modprobe nvidia
-      modprobe nvidia_modeset
-      modprobe nvidia_uvm
-      modprobe nvidia_drm
+      modprobe nouveau
+      # modprobe nvidia
+      # modprobe nvidia_modeset
+      # modprobe nvidia_uvm
+      # modprobe nvidia_drm
 
       # Rebind VT consoles
-      echo 1 > /sys/class/vtconsole/vtcon0/bind
       # Some machines might have more than 1 virtual console. Add a line for each corresponding VTConsole
-      #echo 1 > /sys/class/vtconsole/vtcon1/bind
+      echo 1 > /sys/class/vtconsole/vtcon0/bind
+      echo 1 > /sys/class/vtconsole/vtcon1/bind
 
-      nvidia-xconfig --query-gpu-info > /dev/null 2>&1
+      # commenting out
+      # because nvidia-xconfig does not exist on my Debian 13 + KDE + Wayland + Nouveau
+      # nvidia-xconfig --query-gpu-info > /dev/null 2>&1
       echo "efi-framebuffer.0" > /sys/bus/platform/drivers/efi-framebuffer/bind
 
       # Restart Display Manager
@@ -394,13 +462,13 @@ By following these steps, you'll have your virtual machine set up and ready for 
       ```
 
 
-17. **Customize the files**
+19. **Customize the files**
 - Change the marked numbers with yours
 ![Screenshot from 2024-09-07 14-25-11](https://github.com/user-attachments/assets/fec73398-66f0-4bdf-b426-07d69b311375)
 
 - To find those numbers for your specific system type this command
   ```bash
-  lspci
+  lspci | grep -i nvidia  # your GPU vendor
   ```
   In my case those are the numbers (You probably have different numbers or even more that two PCIs)
 
@@ -410,7 +478,11 @@ By following these steps, you'll have your virtual machine set up and ready for 
 
 - Same goes for the modules. If you have **AMD** or **Intel** find those modules for your system and replace them.
 
-![Screenshot from 2024-09-07 14-34-03](https://github.com/user-attachments/assets/0852a2ad-6d45-4fc3-a631-613780cd8fc9)
+  ![Screenshot from 2024-09-07 14-34-03](https://github.com/user-attachments/assets/0852a2ad-6d45-4fc3-a631-613780cd8fc9)
+  
+  To determine which modules must be replaced, use `lsmod` and grep the output. Open source NVidia driver will not be found if searching for `nvidia` because it is called `nouveau`. My Intel HD Graphics driver is called `i915`.
+
+  Which modules must be stopped when using `nouveau` is yet to be determined as of now.
 
 18. **Add the Hardware to the VM**
 - Click on Add Hardware and select **PCI Host Device**.
@@ -430,3 +502,241 @@ By following these steps, you'll have your virtual machine set up and ready for 
 
  ![remove](https://github.com/user-attachments/assets/281d0499-4d43-4339-8219-bc7a0f53e410)
 
+
+
+
+------------------------------
+## Test log
+
+
+### First attempt
+
+**Conditions:**
+
+- Only the `nouveau` module in the libvirt hooks.
+
+**Report:**
+
+- Fail.
+- Another monitor (connected to MB) also went black.
+    - Could this be somehow related to `systemctl stop display-manager.service` in `start.sh`?
+- Windows did not take over the GPU.
+- VNC was not available at the time to debug
+
+
+### Attempt 2
+
+**Conditions:**
+
+- exactly the same as above but with VNC connection to another machine (see the `Verify VNC` chapter) 
+
+**Report:**
+
+- Success.
+- Several seconds after the screen went black, I connected to Windows via VNC
+- Notifications appeared about my mouse and keyboard being set up
+- Opened device manager and looked for issues, found an unrecognized display adaptor
+- After a while Windows automatically recognized it as my NVidia GPU and installed the drivers
+- The screen activated and revealed Windows in full resolution
+- The only issue is that my mouse did not work (pointing had to be conducted via VNC)
+- After shutting down Windows, Debian + Plasma returned to the screen
+- All windows / applications have been closed (somewhat unexpected) and the mouse still did not work
+
+
+### Attempt 3
+
+**Report:**
+
+- ~~Mouse problem resolved itself~~
+    - However during audio tweaks it still sometimes broke after returning to Debian
+- I tested audio in the VM and it is not working (I am not using the GPU audio interface that's been passed through)
+  - Audio is tested by opening Firefox and playing a YouTube video
+
+**Next steps:**
+
+- Use `lspci | grep -i audio` to find the correct audio device
+    - In my case that's `00:1f.3 Audio device: Intel Corporation 200 Series PCH HD Audio`
+- Use `lspci -v` to find which kernel modules use this device
+
+      00:1f.3 Audio device: Intel Corporation 200 Series PCH HD Audio
+              Subsystem: Micro-Star International Co., Ltd. [MSI] Device da62
+              Flags: bus master, fast devsel, latency 32, IRQ 148, IOMMU group 13
+              Memory at 2fff020000 (64-bit, non-prefetchable) [size=16K]
+              Memory at 2fff000000 (64-bit, non-prefetchable) [size=64K]
+              Capabilities: <access denied>
+              Kernel driver in use: snd_hda_intel
+              Kernel modules: snd_hda_intel, snd_soc_avs
+
+- Edit libvirt hooks to also stop and restart those modules (similar to `nouveau`)
+    - `start.sh`: `sudo rmmod snd_hda_intel`, `sudo rmmod snd_soc_avs`
+    - `revert.sh`: `modprobe snd_hda_intel`, `modprobe snd_soc_avs`
+ 
+- Edit the VM settings again
+    - Remove any `Sound` devices
+        - I tried using them and simply editing their PCIe info but that did not work 
+    - Click `Add Hardware`, select `PCI Host Device` and select the Audio device
+
+
+### Attempt with audio via PCIE
+
+**Report:**
+
+- Something crashed, Windows never started and instead what I saw was Debian login screen
+- Probably something to do with IOMMU device grouping (?)
+- At least audio and the mouse both work
+ 
+**Next steps:**
+ 
+- Remove that PCIe device and go back to the `Sound` one, maybe it will work with that module unloading
+
+
+### Attempt #2 with ich9 audio
+
+**Report:**
+ 
+- Windows booted up but with neither audio nor mouse (interestingly enough even the pointer was missing)
+- No issues found in Device Manager
+- Back in Debian audio worked but pointing didn't
+
+**Next steps:**
+
+- Mouse issue:
+    - Lenghten the sleep time in the libvirt **start** hook from 3 to 5 seconds.
+        - This time KDE windows were still visible for several seconds so maybe something was not closed properly
+     
+
+### Mouse fix attempt #1
+
+**Report (mouse issue):**
+- Mouse worked in Windows but not back in Debian
+
+**Next steps**
+- Set the time to 5s in the exit script
+
+
+### Mouse fix attempt #2
+
+**Report (mouse issue):**
+- After 6 reboots mouse stopped working in Debian only once
+- The results are inconsistent and the 5s delay in both scripts makes testing very cumbersome
+- Reverting back to 3s in both scripts
+
+
+### Back to the audio issue
+
+**Research**
+- Figure out why `ich9` is the newest available option in the VM manager and whether I should even be attempting to use it
+    - (It's from 2007) [en.wikipedia.org](https://en.wikipedia.org/wiki/I/O_Controller_Hub#ICH9)
+- My MB specs lists `Realtek ALC1220 Codec` as rear panel audio
+- Used `aplay -lL`, this excerpt confirms that `Realtek ALC1220` is recognized. There were also entries called `ALC1220 Digital` but I am not currently using those.
+
+      ...
+      hw:CARD=PCH,DEV=0
+          HDA Intel PCH, ALC1220 Analog
+          Direct hardware device without any conversions
+      ...
+      plughw:CARD=PCH,DEV=0
+          HDA Intel PCH, ALC1220 Analog
+          Hardware device with all software conversions
+      ...
+      **** List of PLAYBACK Hardware Devices ****
+      card 0: PCH [HDA Intel PCH], device 0: ALC1220 Analog [ALC1220 Analog]
+        Subdevices: 1/1
+        Subdevice #0: subdevice #0
+      ...
+
+- Used `lsmod | grep ^snd;`, the output points to more modules to unload in libvirt hooks
+
+      snd_seq_dummy          12288  0
+      snd_hrtimer            12288  1
+      snd_seq               110592  7 snd_seq_dummy
+      snd_seq_device         16384  1 snd_seq
+      snd_soc_avs           212992  0
+      snd_soc_hda_codec      24576  1 snd_soc_avs
+      snd_hda_ext_core       36864  2 snd_soc_avs,snd_soc_hda_codec
+      snd_hda_codec_realtek   217088  1
+      snd_soc_core          421888  2 snd_soc_avs,snd_soc_hda_codec
+      snd_hda_codec_generic   114688  1 snd_hda_codec_realtek
+      snd_hda_scodec_component    20480  1 snd_hda_codec_realtek
+      snd_hda_codec_hdmi     98304  2
+      snd_compress           28672  2 snd_soc_avs,snd_soc_core
+      snd_pcm_dmaengine      16384  1 snd_soc_core
+      snd_hda_intel          61440  2
+      snd_intel_dspcfg       40960  2 snd_soc_avs,snd_hda_intel
+      snd_intel_sdw_acpi     16384  1 snd_intel_dspcfg
+      snd_hda_codec         217088  6 snd_hda_codec_generic,snd_soc_avs,snd_hda_codec_hdmi,snd_soc_hda_codec,snd_hda_intel,snd_hda_codec_realtek
+      snd_hda_core          143360  8 snd_hda_codec_generic,snd_soc_avs,snd_hda_codec_hdmi,snd_soc_hda_codec,snd_hda_intel,snd_hda_ext_core,snd_hda_codec,snd_hda_codec_realtek
+      snd_hwdep              20480  1 snd_hda_codec
+      snd_pcm               184320  8 snd_soc_avs,snd_hda_codec_hdmi,snd_hda_intel,snd_hda_codec,snd_compress,snd_soc_core,snd_hda_core,snd_pcm_dmaengine
+      snd_timer              53248  3 snd_seq,snd_hrtimer,snd_pcm
+      snd                   151552  18 snd_hda_codec_generic,snd_seq,snd_seq_device,snd_hda_codec_hdmi,snd_hwdep,snd_hda_intel,snd_hda_codec,snd_hda_codec_realtek,snd_timer,snd_compress,snd_soc_core,snd_pcm
+
+- Command `sudo fuser -v /dev/snd/*` outputs processes responsible for audio
+      - This is well explained in this [archlinux.org thread]([url](https://bbs.archlinux.org/viewtopic.php?pid=1639728#p1639728)) even though my setup is different.
+      - Most importantly this reveals that `pipewire` is used.
+
+                              USER        PID ACCESS COMMAND
+        /dev/snd/controlC0:  disken     1184 F.... wireplumber
+        /dev/snd/controlC1:  disken     1184 F.... wireplumber
+        /dev/snd/seq:        disken     1181 F.... pipewire
+
+    - If removing modules does not work I should make sure that those do not interfere
+
+**Next steps (audio issue):**
+- Changes in the setup script
+    - Kill all `pipewire` and `wireplumber` processes
+        ```bash
+        pkill -f pipewire
+        pkill -f wireplumber
+        ```
+    - Remove modules `snd_hda_codec_realtek`, `snd_hda_codec` and `snd_intel_dspcfg`
+        ```bash
+        sudo rmmod snd_hda_codec_realtek
+        sudo rmmod snd_hda_codec
+        sudo rmmod snd_intel_dspcfg
+        ```
+- Changes in the revert script
+    - Restart removed modules
+        ```bash
+        modprobe snd_hda_codec_realtek
+        modprobe snd_hda_codec
+        modprobe snd_intel_dspcfg
+        ```
+    - Restart pipewire
+        ```bash
+        pipewire
+        ```
+
+
+### Attempt #3 with ich9 audio
+
+**Report:**
+- No audio in Windows, works back in Debian
+- No changes in Device Mananger
+
+**Next steps:**
+- Connect my spare USB audio card and check if it can be passed through more easily
+    - Adjust physical hardware
+    - Open VM settings
+      - Remove `sound` device
+      - Add `USB Host Device` and select the sound card
+
+
+### Attempt #1 with USB sound card
+
+**Report:**
+- Audio works in the system but in game it stops for about 1s every few minutes
+    - Further tests required
+- In-game FPS meter reports stable numbers but the actual performance feels worse
+
+**Next steps:**
+- Adjust CPU topology
+    - Change `3:1:1` (sockets:cores:threads) to `1:3:1` without proactively checking if those numbers make sense
+
+
+### Attempts with new CPU topology
+
+**Report**
+- After several failed attempts with different topologies, I think `1:3:1` provides somewhat improved performance but more testing is needed because this coincided with some additional tweaks, primarily in game settings.
+- Mouse failure after returning to Debian is more consistent but I can restore basic functionality by re-plugging the cable (cannot use the builtin DPI switch for some reason and the indicator lights are off).
+- Audio issues intensified during the early part of the game but this improved after several minutes.
